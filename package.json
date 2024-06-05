@@ -12,6 +12,7 @@
     "exifreader": "^4.23.1",
     "framer-motion": "^11.1.9",
     "next": "14.2.3",
+    "openmeteo": "^1.1.4",
     "preline": "^2.2.0",
     "react": "^18",
     "react-dom": "^18",

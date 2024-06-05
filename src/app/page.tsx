@@ -5,6 +5,9 @@ import PhotoUpload from "../components/PhotoUpload";
 import WeatherLoading from "../components/WeatherLoading";
 import WeatherDisplay from "../components/WeatherDisplay";
 import exifreader from "exifreader";
+import { fetchWeatherApi } from "openmeteo";
+import { reformatDate, reformatTime } from "@/utils/parse";
+
 export default function Home() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData>();
@@ -30,13 +33,50 @@ export default function Home() {
 
       // if location and time are available, fetch weather
       if (latitude && longitude && dateTimeOriginal) {
+
         setIsLoading(true);
         setSelectedPhoto(URL.createObjectURL(file));
-        // TODO: fetch weather data
-        const weather: WeatherData = {
-          temperature: 0,
+
+        const formattedDate = reformatDate(dateTimeOriginal);
+        const formattedtime = reformatTime(dateTimeOriginal);
+
+        const params = {
+          latitude: latitude,
+          longitude: longitude,
+          start_date: formattedDate,
+          end_date: formattedDate,
+          hourly: ["temperature_2m"],
+          temperature_unit: "fahrenheit",
+          wind_speed_unit: "mph",
+          precipitation_unit: "inch",
         };
-        await delay(1500);
+
+        const url = "https://archive-api.open-meteo.com/v1/archive";
+        const responses = await fetchWeatherApi(url, params);
+
+        const range = (start: number, stop: number, step: number) =>
+          Array.from(
+            { length: (stop - start) / step },
+            (_, i) => start + i * step
+          );
+
+        const response = responses[0];
+        const utcOffsetSeconds = response.utcOffsetSeconds();
+        const hourly = response.hourly()!;
+        const weatherData = {
+          hourly: {
+            time: range(
+              Number(hourly.time()),
+              Number(hourly.timeEnd()),
+              hourly.interval()
+            ).map((t) => new Date((t + utcOffsetSeconds) * 1000)),
+            temperature2m: hourly.variables(0)!.valuesArray()!,
+          },
+        };
+
+        const weather: WeatherData = {
+          temperature: weatherData["hourly"]["temperature2m"][formattedtime],
+        };
         setWeatherData(weather);
         setIsLoading(false);
       } else {
